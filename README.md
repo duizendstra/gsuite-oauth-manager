@@ -1,4 +1,4 @@
-G suite group manager
+G Suite oauth manager
 =========
 
 A helper for authenticating with the APIs
