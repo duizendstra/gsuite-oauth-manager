@@ -4,8 +4,8 @@
   "description": "helper for the authentication for the G suite APIs",
   "main": "index.js",
   "dependencies": {
-    "google-auth-library": "^0.9.9",
-    "googleapis": "^14.1.0"
+    "google-auth-library": "^0.9.10",
+    "googleapis": "^14.2.0"
   },
   "devDependencies": {},
   "scripts": {
