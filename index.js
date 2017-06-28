@@ -9,6 +9,7 @@ function gsuiteOauthManager(mainSpecs) {
     var scopes;
     var credentialsFile;
     var tokenFile;
+    var domainAuthorisations = {};
 
     function storeToken(token) {
         fs.writeFile(tokenFile, JSON.stringify(token));
@@ -100,22 +101,23 @@ function gsuiteOauthManager(mainSpecs) {
                 .then(function (response) {
                     credentials = response;
                     // loading token from file
-                    getTokenFromFile(tokenFile).then(function (response) {
-                        if (response) {
-                            // using token from file
-                            authorize(credentials, response).then(function (auth) {
-                                console.log("Authorized user");
-                                resolve(auth);
-                                return;
-                            }).catch(reject);
-                        } else {
-                            // creating new token
-                            getNewToken(credentials).then(function (auth) {
-                                console.log("Authorized user");
-                                resolve(auth);
-                            }).catch(reject);
-                        }
-                    }).catch(reject);
+                    getTokenFromFile(tokenFile)
+                        .then(function (response) {
+                            if (response) {
+                                // using token from file
+                                authorize(credentials, response).then(function (auth) {
+                                    console.log("Authorized user");
+                                    resolve(auth);
+                                    return;
+                                }).catch(reject);
+                            } else {
+                                // creating new token
+                                getNewToken(credentials).then(function (auth) {
+                                    console.log("Authorized user");
+                                    resolve(auth);
+                                }).catch(reject);
+                            }
+                        }).catch(reject);
                 }).catch(reject);
         });
     }
@@ -131,6 +133,11 @@ function gsuiteOauthManager(mainSpecs) {
         user = specs.user;
 
         return new Promise(function (resolve, reject) {
+            if (domainAuthorisations[user] !== undefined) {
+                resolve(domainAuthorisations[user]);
+                return;
+            }
+
             jwtClient = new google.auth.JWT(
                 key.client_email,
                 null,
@@ -145,6 +152,7 @@ function gsuiteOauthManager(mainSpecs) {
                     return;
                 }
                 console.log("Autorized %s as a service account user", user);
+                domainAuthorisations[user] = jwtClient;
                 resolve(jwtClient);
             });
         });

@@ -1,6 +1,6 @@
 {
   "name": "gsuite-oauth-manager",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "helper for the authentication for the G suite APIs",
   "main": "index.js",
   "dependencies": {
