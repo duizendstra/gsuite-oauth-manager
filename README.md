@@ -9,11 +9,13 @@ A helper for authenticating with the APIs
 
 ## Usage
 
-    oauthManager = gsuiteOauthManager({
-        auth: auth
-    });
-  
-  
+    oauthManager = gsuiteOauthManager({});
+
+    gsuiteOauthManager({
+        tokenFile: "path to token file,
+        credentialsFile: "path to credentials file"),
+        scopes: ["requested scopes"]
+    }).getAuthorisation();
 
 ## Tests
 

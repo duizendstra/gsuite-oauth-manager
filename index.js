@@ -12,8 +12,16 @@ function gsuiteOauthManager(mainSpecs) {
     var domainAuthorisations = {};
 
     function storeToken(token) {
-        fs.writeFile(tokenFile, JSON.stringify(token));
-        console.log('Token stored to ' + tokenFile);
+        return new Promise(function (resolve, reject) {
+            fs.writeFile(tokenFile, JSON.stringify(token), function (err) {
+                if (err) {
+                    console.debug("Error writing the toke to %s", tokenFile);
+                    return reject(err);
+                }
+                console.debug("Token stored to %s", tokenFile);
+                return resolve();
+            });
+        });
     }
 
     function getNewToken(credentials) {
@@ -39,19 +47,21 @@ function gsuiteOauthManager(mainSpecs) {
                 rl.close();
                 oauth2Client.getToken(code, function (err, token) {
                     if (err) {
-                        reject("Error while trying to retrieve access token", err);
-                        return;
+                        return reject("Error while trying to retrieve access token", err);
                     }
                     oauth2Client.credentials = token;
-                    storeToken(token);
-                    resolve(oauth2Client);
+                    return storeToken(token).then(function () {
+                        return resolve(oauth2Client);
+                    }).catch(function (err) {
+                        return reject(err);
+                    });
                 });
             });
         });
     }
 
     function authorize(credentials, token) {
-        return new Promise(function (resolve, reject) {
+        return new Promise(function (resolve) {
             var clientSecret = credentials.installed.client_secret;
             var clientId = credentials.installed.client_id;
             var redirectUrl = credentials.installed.redirect_uris[0];
@@ -59,37 +69,34 @@ function gsuiteOauthManager(mainSpecs) {
             var oauth2Client = new auth.OAuth2(clientId, clientSecret, redirectUrl);
 
             oauth2Client.credentials = token;
-            resolve(oauth2Client);
+            return resolve(oauth2Client);
         });
     }
 
     function getTokenFromFile(tokenFile) {
-        return new Promise(function (resolve) {
+        console.debug("loading token from the file %s", tokenFile);
+        return new Promise(function (resolve, reject) {
             fs.readFile(tokenFile, function (err, token) {
                 if (err) {
-                    resolve();
-                } else {
-                    resolve(JSON.parse(token));
+                    if (err.errno === -4058) {
+                        return resolve(undefined);
+                    }
+                    return reject(err);
                 }
+                return resolve(JSON.parse(token));
             });
         });
     }
 
     function loadCredentials(credentialsFile) {
-        console.log("loading credentials from file");
+        console.debug("loading credentials from the file %s", credentialsFile);
         return new Promise(function (resolve, reject) {
-            try {
-                fs.readFile(credentialsFile, function (err, content) {
-                    if (err) {
-                        reject("Error loading client secret file: " + err);
-                        return;
-                    }
-                    resolve(JSON.parse(content));
-                    return;
-                });
-            } catch (e) {
-                reject("Error loading client secret file: " + e);
-            }
+            fs.readFile(credentialsFile, function (err, content) {
+                if (err) {
+                    return reject("Error loading client secret file: " + err);
+                }
+                return resolve(JSON.parse(content));
+            });
         });
     }
 
@@ -97,28 +104,26 @@ function gsuiteOauthManager(mainSpecs) {
         return new Promise(function (resolve, reject) {
             var credentials;
             // loading credentials file
-            loadCredentials(credentialsFile)
-                .then(function (response) {
-                    credentials = response;
-                    // loading token from file
-                    getTokenFromFile(tokenFile)
-                        .then(function (response) {
-                            if (response) {
-                                // using token from file
-                                authorize(credentials, response).then(function (auth) {
-                                    console.log("Authorized user");
-                                    resolve(auth);
-                                    return;
-                                }).catch(reject);
-                            } else {
-                                // creating new token
-                                getNewToken(credentials).then(function (auth) {
-                                    console.log("Authorized user");
-                                    resolve(auth);
-                                }).catch(reject);
-                            }
-                        }).catch(reject);
-                }).catch(reject);
+            return loadCredentials(credentialsFile).then(function (response) {
+                credentials = response;
+                // loading token from file
+                return getTokenFromFile(tokenFile);
+            }).then(function (response) {
+                if (response) {
+                    // using token from file
+                    return authorize(credentials, response).then(function (auth) {
+                        console.debug("Authorized user");
+                        return resolve(auth);
+                    });
+                }
+                // creating new token
+                return getNewToken(credentials).then(function (auth) {
+                    console.debug("Authorized user");
+                    return resolve(auth);
+                });
+            }).catch(function (err) {
+                return reject(err);
+            });
         });
     }
 
@@ -148,12 +153,11 @@ function gsuiteOauthManager(mainSpecs) {
             jwtClient.authorize(function (err) {
                 if (err) {
                     console.log(err);
-                    reject("Could not authenticate " + user + ":" + err);
-                    return;
+                    return reject("Could not authenticate " + user + ":" + err);
                 }
-                console.log("Autorized %s as a service account user", user);
+                console.debug("Autorized %s as a service account user", user);
                 domainAuthorisations[user] = jwtClient;
-                resolve(jwtClient);
+                return resolve(jwtClient);
             });
         });
     }
